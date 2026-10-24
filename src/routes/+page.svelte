@@ -7,7 +7,14 @@
   let multiplier = $state(1.15);
   let time = $state(1000);
 
+  // Auto-purchaser unlock states and interval timing
+  let autoClickL1 = $state(false);
+  let autoClickL2 = $state(false);
+  let autoClickL3 = $state(false);
+  let autoPurchaserIntervalTime = $state(1000);
+
   let timerId: ReturnType<typeof setInterval> | null = null;
+  let autoPurchaserId: ReturnType<typeof setInterval> | null = null;
   let isLoaded = $state(false);
 
   const fmt = (n: number) => Number(n.toFixed(2));
@@ -19,13 +26,6 @@
     timerId = setInterval(() => {
       cash += cashPerSec;
     }, time);
-  }
-
-  function stopTimer(): void {
-    if (timerId !== null) {
-      clearInterval(timerId);
-      timerId = null;
-    }
   }
 
   function handleMainClick(): void {
@@ -60,10 +60,65 @@
     resetCashAfterUpgrade();
   }
 
-  // Restarts the interval automatically when `time` changes while timer is active
+  function unlockAutoClickL1(): void {
+    autoClickL1 = true;
+    resetCashAfterUpgrade();
+    startAutoPurchaser();
+  }
+
+  function unlockAutoClickL2(): void {
+    autoClickL2 = true;
+    resetCashAfterUpgrade();
+    startAutoPurchaser();
+  }
+
+  function unlockAutoClickL3(): void {
+    autoClickL3 = true;
+    resetCashAfterUpgrade();
+    startAutoPurchaser();
+  }
+
+  function speedUpAutoPurchasers(): void {
+    autoPurchaserIntervalTime *= 0.9;
+    resetCashAfterUpgrade();
+    startAutoPurchaser();
+  }
+
+  // Check if player can afford an upgrade cost based on 20% reset rule
+  // (Since any purchase leaves cash at 20% of prior total, cost must be <= 80% of current cash)
+  function canAfford(cost: number): boolean {
+    return cash > cost;
+  }
+
+  function startAutoPurchaser(): void {
+    if (autoPurchaserId !== null) {
+      clearInterval(autoPurchaserId);
+    }
+    autoPurchaserId = setInterval(() => {
+      const l1Cost = 200;
+      const l2Cost = 350;
+      const l3Cost = 500;
+
+      if (autoClickL3 && canAfford(l3Cost)) {
+        increaseMultiplier(0.05);
+      } else if (autoClickL2 && canAfford(l2Cost)) {
+        handleCashPerSec(multiplier);
+      } else if (autoClickL1 && canAfford(l1Cost)) {
+        handleCashPerClick(multiplier);
+      }
+    }, autoPurchaserIntervalTime);
+  }
+
+  // Restarts intervals automatically when timing configurations change
   $effect(() => {
     if (timerId !== null) {
       startTimer();
+    }
+  });
+
+  $effect(() => {
+    if (autoClickL1 || autoClickL2 || autoClickL3) {
+      startAutoPurchaser();
     }
   });
 
@@ -78,6 +133,10 @@
         cashPerSec = parsed.cashPerSec ?? 0.25;
         multiplier = parsed.multiplier ?? 1.15;
         time = parsed.time ?? 1000;
+        autoClickL1 = parsed.autoClickL1 ?? false;
+        autoClickL2 = parsed.autoClickL2 ?? false;
+        autoClickL3 = parsed.autoClickL3 ?? false;
+        autoPurchaserIntervalTime = parsed.autoPurchaserIntervalTime ?? 1000;
         if (parsed.isTimerRunning) {
           startTimer();
         }
@@ -97,6 +156,10 @@
       cashPerSec,
       multiplier,
       time,
+      autoClickL1,
+      autoClickL2,
+      autoClickL3,
+      autoPurchaserIntervalTime,
       isTimerRunning: timerId !== null
     };
     localStorage.setItem('button_masher_save', JSON.stringify(saveData));
@@ -107,6 +170,7 @@
     title: string;
     description: string;
     cost: number;
+    purchased?: boolean;
     action: () => void;
   }
 
@@ -145,6 +209,37 @@
       description: 'Speed up auto income',
       cost: 150,
       action: () => speedUpTimer()
+    },
+    {
+      level: 6,
+      title: 'Level 6',
+      description: 'Auto-click Level 1 every 1s',
+      cost: 200,
+      purchased: autoClickL1,
+      action: () => unlockAutoClickL1()
+    },
+    {
+      level: 7,
+      title: 'Level 7',
+      description: 'Auto-click Level 2 every 1s',
+      cost: 350,
+      purchased: autoClickL2,
+      action: () => unlockAutoClickL2()
+    },
+    {
+      level: 8,
+      title: 'Level 8',
+      description: 'Auto-click Level 3 every 1s',
+      cost: 500,
+      purchased: autoClickL3,
+      action: () => unlockAutoClickL3()
+    },
+    {
+      level: 9,
+      title: 'Level 9',
+      description: 'Make auto-purchasers 10% faster',
+      cost: 750,
+      action: () => speedUpAutoPurchasers()
     }
   ]);
 </script>
@@ -171,10 +266,10 @@
         </div>
         <button
           class="power"
-          disabled={cash <= item.cost}
+          disabled={cash <= item.cost || item.purchased}
           onclick={item.action}
         >
-          {item.cost} cash
+          {item.purchased ? 'Owned' : `${item.cost} cash`}
         </button>
       </div>
     {/each}
@@ -184,7 +279,7 @@
 <style>
   .game-container {
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    max-width: 400px;
+    max-width: 420px;
     margin: 2rem auto;
     padding: 1.5rem;
     background: #f9fafb;
@@ -265,6 +360,8 @@
       cursor: pointer;
       font-weight: 500;
       transition: background 0.2s;
+      min-width: 90px;
+      text-align: center;
 
       &:hover:not(:disabled) {
         background: #15803d;
