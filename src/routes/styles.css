@@ -1,0 +1,29 @@
+:root {
+  color-scheme: light dark;
+
+  --black: #111111;
+  --white: #eeeeee;
+  --orange-dark: #eb3925;
+  --orange-light: #eb9c25;
+
+  --bg: light-dark(var(--white), var(--black));
+  --text: light-dark(var(--black), var(--white));
+  --accent: light-dark(var(--orange-light), var(--orange-dark));
+
+  --bg-trans: rgb(from var(--text) r g b / 0.15);
+
+  --gap: 1rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  color: var(--text);
+  background: var(--bg);
+}
