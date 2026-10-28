@@ -1,264 +1,24 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { createGame } from './game.svelte';
 
-  let cash = $state(0);
-  let cashPerClick = $state(0.25);
-  let cashPerSec = $state(0.25);
-  let multiplier = $state(1.15);
-  let time = $state(1000);
-
-  // Auto-purchaser unlock states and interval timing
-  let autoClickL1 = $state(false);
-  let autoClickL2 = $state(false);
-  let autoClickL3 = $state(false);
-  let autoPurchaserIntervalTime = $state(1000);
-
-  let timerId: ReturnType<typeof setInterval> | null = null;
-  let autoPurchaserId: ReturnType<typeof setInterval> | null = null;
-  let isLoaded = $state(false);
-
-  const fmt = (n: number) => Number(n.toFixed(2));
-
-  function startTimer(): void {
-    if (timerId !== null) {
-      clearInterval(timerId);
-    }
-    timerId = setInterval(() => {
-      cash += cashPerSec;
-    }, time);
-  }
-
-  function handleMainClick(): void {
-    cash += cashPerClick;
-  }
-
-  // Resets total cash to 20% of the current total (retains 20%, removes 80%)
-  function resetCashAfterUpgrade(): void {
-    cash *= 0.20;
-  }
-
-  function handleCashPerClick(m: number): void {
-    cashPerClick *= m;
-    multiplier *= 1.15;
-    resetCashAfterUpgrade();
-  }
-
-  function handleCashPerSec(m: number): void {
-    cashPerSec *= m;
-    multiplier *= 1.15;
-    resetCashAfterUpgrade();
-    startTimer();
-  }
-
-  function increaseMultiplier(amount: number): void {
-    multiplier += amount;
-    resetCashAfterUpgrade();
-  }
-
-  function speedUpTimer(): void {
-    time *= 0.8;
-    resetCashAfterUpgrade();
-  }
-
-  function unlockAutoClickL1(): void {
-    autoClickL1 = true;
-    resetCashAfterUpgrade();
-    startAutoPurchaser();
-  }
-
-  function unlockAutoClickL2(): void {
-    autoClickL2 = true;
-    resetCashAfterUpgrade();
-    startAutoPurchaser();
-  }
-
-  function unlockAutoClickL3(): void {
-    autoClickL3 = true;
-    resetCashAfterUpgrade();
-    startAutoPurchaser();
-  }
-
-  function speedUpAutoPurchasers(): void {
-    autoPurchaserIntervalTime *= 0.9;
-    resetCashAfterUpgrade();
-    startAutoPurchaser();
-  }
-
-  // Check if player can afford an upgrade cost based on 20% reset rule
-  // (Since any purchase leaves cash at 20% of prior total, cost must be <= 80% of current cash)
-  function canAfford(cost: number): boolean {
-    return cash > cost;
-  }
-
-  function startAutoPurchaser(): void {
-    if (autoPurchaserId !== null) {
-      clearInterval(autoPurchaserId);
-    }
-    autoPurchaserId = setInterval(() => {
-      const l1Cost = 200;
-      const l2Cost = 350;
-      const l3Cost = 500;
-
-      if (autoClickL3 && canAfford(l3Cost)) {
-        increaseMultiplier(0.05);
-      } else if (autoClickL2 && canAfford(l2Cost)) {
-        handleCashPerSec(multiplier);
-      } else if (autoClickL1 && canAfford(l1Cost)) {
-        handleCashPerClick(multiplier);
-      }
-    }, autoPurchaserIntervalTime);
-  }
-
-  // Restarts intervals automatically when timing configurations change
-  $effect(() => {
-    if (timerId !== null) {
-      startTimer();
-    }
-  });
-
-  $effect(() => {
-    if (autoClickL1 || autoClickL2 || autoClickL3) {
-      startAutoPurchaser();
-    }
-  });
-
-  // Load saved state on component mount
-  onMount(() => {
-    const saved = localStorage.getItem('button_masher_save');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        cash = parsed.cash ?? 0;
-        cashPerClick = parsed.cashPerClick ?? 0.25;
-        cashPerSec = parsed.cashPerSec ?? 0.25;
-        multiplier = parsed.multiplier ?? 1.15;
-        time = parsed.time ?? 1000;
-        autoClickL1 = parsed.autoClickL1 ?? false;
-        autoClickL2 = parsed.autoClickL2 ?? false;
-        autoClickL3 = parsed.autoClickL3 ?? false;
-        autoPurchaserIntervalTime = parsed.autoPurchaserIntervalTime ?? 1000;
-        if (parsed.isTimerRunning) {
-          startTimer();
-        }
-      } catch (e) {
-        console.error('Failed to parse save game:', e);
-      }
-    }
-    isLoaded = true;
-  });
-
-  // Auto-save state to localStorage on state updates
-  $effect(() => {
-    if (!isLoaded) return;
-    const saveData = {
-      cash,
-      cashPerClick,
-      cashPerSec,
-      multiplier,
-      time,
-      autoClickL1,
-      autoClickL2,
-      autoClickL3,
-      autoPurchaserIntervalTime,
-      isTimerRunning: timerId !== null
-    };
-    localStorage.setItem('button_masher_save', JSON.stringify(saveData));
-  });
-
-  interface Upgrade {
-    level: number;
-    title: string;
-    description: string;
-    cost: number;
-    purchased?: boolean;
-    action: () => void;
-  }
-
-  const upgrades: Upgrade[] = $derived([
-    {
-      level: 1,
-      title: 'Level 1',
-      description: 'Increase money/click',
-      cost: 15,
-      action: () => handleCashPerClick(multiplier)
-    },
-    {
-      level: 2,
-      title: 'Level 2',
-      description: 'Increase money/sec',
-      cost: 30,
-      action: () => handleCashPerSec(multiplier)
-    },
-    {
-      level: 3,
-      title: 'Level 3',
-      description: 'Increase multiplier by 5%',
-      cost: 50,
-      action: () => increaseMultiplier(0.05)
-    },
-    {
-      level: 4,
-      title: 'Level 4',
-      description: 'Increase multiplier by 15%',
-      cost: 100,
-      action: () => increaseMultiplier(0.15)
-    },
-    {
-      level: 5,
-      title: 'Level 5',
-      description: 'Speed up auto income',
-      cost: 150,
-      action: () => speedUpTimer()
-    },
-    {
-      level: 6,
-      title: 'Level 6',
-      description: 'Auto-click Level 1 every 1s',
-      cost: 200,
-      purchased: autoClickL1,
-      action: () => unlockAutoClickL1()
-    },
-    {
-      level: 7,
-      title: 'Level 7',
-      description: 'Auto-click Level 2 every 1s',
-      cost: 350,
-      purchased: autoClickL2,
-      action: () => unlockAutoClickL2()
-    },
-    {
-      level: 8,
-      title: 'Level 8',
-      description: 'Auto-click Level 3 every 1s',
-      cost: 500,
-      purchased: autoClickL3,
-      action: () => unlockAutoClickL3()
-    },
-    {
-      level: 9,
-      title: 'Level 9',
-      description: 'Make auto-purchasers 10% faster',
-      cost: 750,
-      action: () => speedUpAutoPurchasers()
-    }
-  ]);
+  const game = createGame();
 </script>
 
 <div class="game-container">
   <div class="stats">
-    <p><strong>Cash:</strong> ${fmt(cash)}</p>
-    <p><strong>Cash Per Click:</strong> {fmt(cashPerClick)}</p>
-    <p><strong>Cash Per Sec:</strong> {fmt(cashPerSec)}</p>
-    <p><strong>Multiplier:</strong> {fmt(multiplier)}x</p>
-    <p><strong>Tick Interval:</strong> {fmt(time)} ms</p>
+    <p><strong>Cash:</strong> ${game.fmt(game.cash)}</p>
+    <p><strong>Cash Per Click:</strong> {game.fmt(game.cashPerClick)}</p>
+    <p><strong>Cash Per Sec:</strong> {game.fmt(game.cashPerSec)}</p>
+    <p><strong>Multiplier:</strong> {game.fmt(game.multiplier)}x</p>
+    <p><strong>Tick Interval:</strong> {game.fmt(game.time)} ms</p>
   </div>
 
   <div class="main-action">
-    <button class="click-btn" onclick={handleMainClick}>Click Me!</button>
+    <button class="click-btn" onclick={game.handleMainClick}>Click Me!</button>
   </div>
 
   <div class="buttons">
-    {#each upgrades as item (item.level)}
+    {#each game.upgrades as item (item.level)}
       <div class="btn-area">
         <div>
           <p class="title">{item.title}</p>
@@ -266,7 +26,7 @@
         </div>
         <button
           class="power"
-          disabled={cash <= item.cost || item.purchased}
+          disabled={game.cash <= item.cost || item.purchased}
           onclick={item.action}
         >
           {item.purchased ? 'Owned' : `${item.cost} cash`}
