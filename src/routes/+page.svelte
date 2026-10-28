@@ -86,7 +86,7 @@
 <style>
   .game-container {
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    max-width: 440px;
+    max-width: var(--max-width);
     margin: 2rem auto;
     padding: var(--gap);
     background: var(--bg-trans);
@@ -160,16 +160,17 @@
       font-size: 1.35rem;
       font-weight: 900;
       letter-spacing: 0.05em;
-      color: var(--white);
-      background: linear-gradient(135deg, var(--accent), hsl(from var(--accent) h s calc(l - 15%)));
+      color: #ffffff;
+      /* Fixed: using direct var(--accent) with a clean fallback */
+      background: var(--accent);
       border: none;
       border-radius: 12px;
       cursor: pointer;
-      box-shadow: 0 4px 14px rgb(from var(--accent) r g b / 0.4);
+      box-shadow: 0 4px 14px rgb(0 0 0 / 0.2);
       transition: transform 0.1s ease, filter 0.2s ease;
 
       &:hover {
-        filter: brightness(1.1);
+        filter: brightness(1.15);
       }
 
       &:active {
@@ -201,8 +202,8 @@
   }
 
   .buttons {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 0.75rem;
   }
 

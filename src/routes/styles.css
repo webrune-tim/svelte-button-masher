@@ -13,6 +13,7 @@
   --bg-trans: rgb(from var(--text) r g b / 0.15);
 
   --gap: 1rem;
+  --max-width: 600px;
 }
 
 *,
